@@ -8,6 +8,12 @@ import { coverFit } from "../lib/image";
 const CAPTURE_W = 640;
 const CAPTURE_H = 360;
 
+const PRESETS: { src: string; label: string }[] = [
+  // Add your preset images here. Drop files into public/presets/ and add entries:
+  // { src: "/presets/person-1.jpg", label: "Person 1" },
+  // { src: "/presets/person-2.jpg", label: "Person 2" },
+];
+
 const BTN_SHADOW =
   "shadow-[0px_1px_2px_0px_rgba(0,0,0,0.1),0px_4px_4px_0px_rgba(0,0,0,0.09),0px_10px_6px_0px_rgba(0,0,0,0.05)]";
 
@@ -16,6 +22,7 @@ export function MorpheusDemo() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [captureStream, setCaptureStream] = useState<MediaStream | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const captureVideoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -170,9 +177,62 @@ export function MorpheusDemo() {
     [status, isCapturing, sendCommand]
   );
 
+  const handlePresetSelect = useCallback(
+    async (preset: { src: string; label: string }) => {
+      if (status !== "ready" || isCapturing) return;
+
+      setIsCapturing(true);
+      setSelectedPreset(preset.src);
+
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+          img.src = preset.src;
+        });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = CAPTURE_W;
+        canvas.height = CAPTURE_H;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Failed to get canvas context");
+
+        const { x, y, w, h } = coverFit(
+          img.width,
+          img.height,
+          CAPTURE_W,
+          CAPTURE_H
+        );
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, x, y, w, h, 0, 0, CAPTURE_W, CAPTURE_H);
+
+        const imageBase64 = canvas.toDataURL("image/jpeg", 0.7);
+
+        setCapturedImage(imageBase64);
+
+        await sendCommand("set_reference_image", { image_b64: imageBase64 });
+        await sendCommand("reset", {});
+
+        setIsDisguised(true);
+      } catch (error) {
+        console.error("[Morpheus] Failed to apply preset:", error);
+        setSelectedPreset(null);
+      } finally {
+        setIsCapturing(false);
+      }
+    },
+    [status, isCapturing, sendCommand]
+  );
+
   const handleReset = useCallback(async () => {
     setIsDisguised(false);
     setCapturedImage(null);
+    setSelectedPreset(null);
     try {
       await sendCommand("reset", {});
     } catch (error) {
@@ -183,7 +243,7 @@ export function MorpheusDemo() {
   const isReady = status === "ready";
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
+    <div className="h-screen bg-black text-white overflow-hidden">
       {/* Hidden video element for capture */}
       <video
         ref={captureVideoRef}
@@ -193,19 +253,19 @@ export function MorpheusDemo() {
         style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
       />
 
-      <div className="relative z-10 min-h-screen flex flex-col p-6 md:p-8">
+      <div className="relative z-10 h-screen flex flex-col p-4 md:p-6">
         {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
-            Reactor
+        <header className="text-center mb-4">
+          <h1 className="text-3xl md:text-4xl font-medium tracking-tight text-white">
+            Morpheus
           </h1>
-          <p className="mt-3 text-sm text-[#bdbdbd] font-mono uppercase tracking-widest">
+          <p className="mt-1.5 text-xs text-[#bdbdbd] font-mono uppercase tracking-widest">
             Real-Time Human Video Editing
           </p>
         </header>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 min-h-0">
           {/* Video container */}
           <div className="relative w-full max-w-4xl">
             <div
@@ -309,7 +369,7 @@ export function MorpheusDemo() {
           </div>
 
           {/* Controls */}
-          <div className="flex flex-col items-center gap-4 w-full max-w-md">
+          <div className="flex flex-col items-center gap-3 w-full max-w-md">
             {/* Hidden file input */}
             <input
               ref={fileInputRef}
@@ -367,8 +427,41 @@ export function MorpheusDemo() {
           </div>
         </div>
 
+        {/* Preset images */}
+        {PRESETS.length > 0 && (
+          <div className="w-full max-w-4xl mx-auto mt-2">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-[#bdbdbd]/60 mb-2 text-center">
+              Presets
+            </p>
+            <div className="flex justify-center gap-2 overflow-x-auto pb-1">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.src}
+                  onClick={() => handlePresetSelect(preset)}
+                  disabled={!isReady || isCapturing}
+                  className={`relative flex-shrink-0 w-20 h-20 rounded overflow-hidden border transition-all duration-200 ${
+                    selectedPreset === preset.src
+                      ? "border-[#c7c099] ring-1 ring-[#c7c099]"
+                      : "border-white/10 hover:border-white/30"
+                  } disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  <img
+                    src={preset.src}
+                    alt={preset.label}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <span className="absolute bottom-1 left-1 right-1 text-[9px] font-mono text-white/80 uppercase truncate">
+                    {preset.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
-        <footer className="mt-8 flex flex-col items-center gap-3">
+        <footer className="mt-3 flex flex-col items-center gap-2">
           <div className="flex items-center gap-3">
             <img
               src="/logos/reactor-symbol-white.svg"
