@@ -197,7 +197,7 @@ export function MorpheusDemo() {
         {/* Header */}
         <header className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
-            Reactor
+            Morpheus
           </h1>
           <p className="mt-3 text-sm text-[#bdbdbd] font-mono uppercase tracking-widest">
             Real-Time Human Video Editing
