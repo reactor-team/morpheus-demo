@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ReactorProvider, fetchInsecureJwtToken } from "@reactor-team/js-sdk";
+import {
+  ReactorProvider,
+  fetchInsecureJwtToken,
+  video,
+} from "@reactor-team/js-sdk";
 import { MorpheusDemo } from "./components/MorpheusDemo";
 import { AuthPlaceholder } from "./components/AuthPlaceholder";
 
@@ -35,6 +39,8 @@ export default function Home() {
       modelName="morpheus"
       coordinatorUrl={COORDINATOR_URL}
       jwtToken={jwtToken}
+      receive={[video("main_video")]}
+      send={[video("webcam")]}
     >
       <MorpheusDemo />
     </ReactorProvider>
