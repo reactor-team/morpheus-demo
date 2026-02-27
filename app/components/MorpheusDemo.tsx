@@ -3,6 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ReactorView, WebcamStream, useReactor } from "@reactor-team/js-sdk";
 import { StatusBadge } from "./StatusBadge";
+import { PresetImages } from "./PresetImages";
+import { StatsPanel } from "./StatsPanel";
 import { coverFit } from "../lib/image";
 
 const CAPTURE_W = 640;
@@ -15,6 +17,7 @@ export function MorpheusDemo() {
   const [isDisguised, setIsDisguised] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [captureStream, setCaptureStream] = useState<MediaStream | null>(null);
   const captureVideoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +66,7 @@ export function MorpheusDemo() {
     if (status === "disconnected") {
       setIsDisguised(false);
       setCapturedImage(null);
+      setSelectedPreset(null);
     }
   }, [status]);
 
@@ -102,6 +106,7 @@ export function MorpheusDemo() {
       }
 
       setCapturedImage(frameBase64);
+      setSelectedPreset(null);
 
       await sendCommand("set_reference_image", { image_b64: frameBase64 });
       await sendCommand("reset", {});
@@ -153,6 +158,7 @@ export function MorpheusDemo() {
         URL.revokeObjectURL(imageUrl);
 
         setCapturedImage(imageBase64);
+        setSelectedPreset(null);
 
         await sendCommand("set_reference_image", { image_b64: imageBase64 });
         await sendCommand("reset", {});
@@ -170,9 +176,29 @@ export function MorpheusDemo() {
     [status, isCapturing, sendCommand]
   );
 
+  const handlePresetSelect = useCallback(
+    async (imageBase64: string) => {
+      if (status !== "ready" || isCapturing) return;
+
+      setIsCapturing(true);
+      try {
+        setCapturedImage(imageBase64);
+        await sendCommand("set_reference_image", { image_b64: imageBase64 });
+        await sendCommand("reset", {});
+        setIsDisguised(true);
+      } catch (error) {
+        console.error("[Morpheus] Failed to apply preset:", error);
+      } finally {
+        setIsCapturing(false);
+      }
+    },
+    [status, isCapturing, sendCommand],
+  );
+
   const handleReset = useCallback(async () => {
     setIsDisguised(false);
     setCapturedImage(null);
+    setSelectedPreset(null);
     try {
       await sendCommand("reset", {});
     } catch (error) {
@@ -217,6 +243,7 @@ export function MorpheusDemo() {
                   className={`absolute inset-0 transition-opacity duration-200 ${isDisguised ? "opacity-0 z-0" : "opacity-100 z-10"}`}
                 >
                   <WebcamStream
+                    track="webcam"
                     className="w-full h-full"
                     videoObjectFit="cover"
                     videoConstraints={{
@@ -278,6 +305,7 @@ export function MorpheusDemo() {
                 <div className="absolute bottom-4 left-4 z-10">
                   <div className="relative w-40 aspect-video rounded overflow-hidden border border-white/20">
                     <WebcamStream
+                      track="webcam"
                       className="w-full h-full"
                       videoObjectFit="cover"
                       videoConstraints={{
@@ -307,6 +335,9 @@ export function MorpheusDemo() {
               )}
             </div>
           </div>
+
+          {/* Stats panel */}
+          <StatsPanel />
 
           {/* Controls */}
           <div className="flex flex-col items-center gap-4 w-full max-w-md">
@@ -364,6 +395,16 @@ export function MorpheusDemo() {
                 </button>
               )}
             </div>
+
+            {/* Preset images */}
+            <PresetImages
+              onSelect={(base64, presetSrc) => {
+                setSelectedPreset(presetSrc);
+                handlePresetSelect(base64);
+              }}
+              disabled={!isReady || isCapturing}
+              selectedSrc={selectedPreset}
+            />
           </div>
         </div>
 
