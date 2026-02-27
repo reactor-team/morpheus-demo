@@ -36,6 +36,7 @@ export default function Home() {
       coordinatorUrl={COORDINATOR_URL}
       jwtToken={jwtToken}
       send={[{ name: "webcam", kind: "video" }]}
+      connectOptions={{ autoConnect: true }}
     >
       <MorpheusDemo />
     </ReactorProvider>
