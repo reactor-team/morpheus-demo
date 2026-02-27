@@ -217,6 +217,7 @@ export function MorpheusDemo() {
                   className={`absolute inset-0 transition-opacity duration-200 ${isDisguised ? "opacity-0 z-0" : "opacity-100 z-10"}`}
                 >
                   <WebcamStream
+                    track="webcam"
                     className="w-full h-full"
                     videoObjectFit="cover"
                     videoConstraints={{
@@ -232,6 +233,7 @@ export function MorpheusDemo() {
                   <ReactorView
                     className="w-full h-full"
                     videoObjectFit="cover"
+                    track="main_video"
                   />
                 </div>
               </div>
@@ -278,6 +280,7 @@ export function MorpheusDemo() {
                 <div className="absolute bottom-4 left-4 z-10">
                   <div className="relative w-40 aspect-video rounded overflow-hidden border border-white/20">
                     <WebcamStream
+                      track="webcam"
                       className="w-full h-full"
                       videoObjectFit="cover"
                       videoConstraints={{
