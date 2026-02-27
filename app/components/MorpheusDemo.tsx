@@ -233,6 +233,7 @@ export function MorpheusDemo() {
                   <ReactorView
                     className="w-full h-full"
                     videoObjectFit="cover"
+                    track="main_video"
                   />
                 </div>
               </div>
